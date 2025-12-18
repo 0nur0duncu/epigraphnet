@@ -33,7 +33,7 @@ model:
   graph:
     num_windows: 8        # W - pencere sayısı
     num_nodes: 16         # N - düğüm sayısı
-    sparsity: 50          # a - seyreklik parametresi (0-100)
+    sparsity: 25          # a - seyreklik parametresi (Tablo II'de a=25 daha iyi sonuç)
     thresholding: "value" # "value" (DE) veya "connection" (BE)
   
   # GCN Modülü (Şekil 1'de 3 GraphConv katmanı)
@@ -61,7 +61,7 @@ training:
   # Erken Durdurma
   early_stopping:
     enabled: true
-    patience: 10
+    patience: 15          # 10'dan 15'e artırıldı
     min_delta: 0.001
   
   # Checkpoint
