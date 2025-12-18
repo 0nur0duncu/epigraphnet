@@ -1,6 +1,12 @@
 """
 EpiGraphNet Stratified K-Fold Cross-Validation Değerlendirme
 Makaledeki sonuçlarla tam eşleşme için k-fold çapraz doğrulama
+
+Önemli: Küçük veri setlerinde (500 örnek) validation split gürültülü
+sonuçlar verir. Bu nedenle:
+- Validation split kullanılmaz (tüm train verisi eğitim için)
+- Early stopping kullanılmaz (sabit epoch)
+- Cosine annealing LR scheduler kullanılır
 """
 
 import os
@@ -13,7 +19,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from sklearn.model_selection import StratifiedKFold
 from tqdm import tqdm
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 
 from models import EpiGraphNet
 from data import BonnEEGDataset
@@ -64,52 +70,20 @@ def train_one_epoch(
     return metrics
 
 
-@torch.no_grad()
-def validate(
-    model: nn.Module,
-    val_loader: DataLoader,
-    criterion: nn.Module,
-    device: torch.device
-) -> Dict[str, float]:
-    """Validasyon."""
-    model.eval()
-    
-    total_loss = 0.0
-    all_preds = []
-    all_labels = []
-    
-    for batch_x, batch_y in val_loader:
-        batch_x = batch_x.to(device)
-        batch_y = batch_y.to(device)
-        
-        logits = model(batch_x)
-        loss = criterion(logits, batch_y)
-        
-        total_loss += loss.item() * batch_x.size(0)
-        preds = logits.argmax(dim=1)
-        all_preds.extend(preds.cpu().tolist())
-        all_labels.extend(batch_y.cpu().tolist())
-    
-    avg_loss = total_loss / len(val_loader.dataset)
-    metrics = calculate_all_metrics(all_labels, all_preds)
-    metrics["loss"] = avg_loss
-    
-    return metrics
-
-
 def train_fold(
     model: nn.Module,
     train_loader: DataLoader,
-    val_loader: DataLoader,
     config: Dict[str, Any],
     device: torch.device,
     fold: int
-) -> Tuple[nn.Module, Dict[str, float]]:
+) -> nn.Module:
     """
-    Tek bir fold için eğitim.
+    Tek bir fold için eğitim (early stopping olmadan, sabit epoch).
+    Küçük veri setlerinde validation split gürültülü olduğu için
+    tüm eğitim verisi kullanılır ve sabit epoch çalıştırılır.
     
     Returns:
-        (best_model, best_metrics)
+        Eğitilmiş model
     """
     training_config = config["training"]
     
@@ -120,46 +94,37 @@ def train_fold(
         weight_decay=training_config["weight_decay"]
     )
     
-    # Early stopping
-    patience = training_config.get("early_stopping", {}).get("patience", 15)
-    min_delta = training_config.get("early_stopping", {}).get("min_delta", 0.001)
-    best_val_loss = float("inf")
-    patience_counter = 0
-    best_state = None
-    best_metrics = None
+    # Learning rate scheduler (warmup + decay)
+    from torch.optim.lr_scheduler import CosineAnnealingLR
+    scheduler = CosineAnnealingLR(optimizer, T_max=training_config["num_epochs"], eta_min=1e-6)
     
     num_epochs = training_config["num_epochs"]
+    best_train_acc = 0.0
+    best_state = None
     
     for epoch in range(1, num_epochs + 1):
         # Train
         train_metrics = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        scheduler.step()
         
-        # Validate
-        val_metrics = validate(model, val_loader, criterion, device)
-        
-        # Early stopping kontrolü
-        if val_metrics["loss"] < best_val_loss - min_delta:
-            best_val_loss = val_metrics["loss"]
+        # En iyi train accuracy'yi kaydet
+        if train_metrics["accuracy"] > best_train_acc:
+            best_train_acc = train_metrics["accuracy"]
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-            best_metrics = val_metrics.copy()
-            patience_counter = 0
-        else:
-            patience_counter += 1
         
         # Her 10 epoch'ta bir yazdır
         if epoch % 10 == 0 or epoch == 1:
-            print(f"  Epoch {epoch:3d}: Train Loss={train_metrics['loss']:.4f}, "
-                  f"Val Loss={val_metrics['loss']:.4f}, Val Acc={val_metrics['accuracy']:.2f}%")
-        
-        if patience_counter >= patience:
-            print(f"  Early stopping at epoch {epoch}")
-            break
+            current_lr = scheduler.get_last_lr()[0]
+            print(f"  Epoch {epoch:3d}: Loss={train_metrics['loss']:.4f}, "
+                  f"Acc={train_metrics['accuracy']:.2f}%, LR={current_lr:.6f}")
     
     # En iyi modeli yükle
     if best_state:
         model.load_state_dict(best_state)
     
-    return model, best_metrics
+    print(f"  Best Train Acc: {best_train_acc:.2f}%")
+    
+    return model
 
 
 @torch.no_grad()
@@ -239,37 +204,21 @@ def run_kfold_cv(
         torch.manual_seed(random_seed + fold)
         np.random.seed(random_seed + fold)
         
-        # Train/Val split (train içinden %10 validation)
+        # Tüm train verisi eğitim için kullanılır (validation split yok)
+        # Küçük veri setlerinde validation split gürültülü sonuçlar verir
         train_signals = signals[train_idx]
         train_labels = labels[train_idx]
         test_signals = signals[test_idx]
         test_labels = labels[test_idx]
         
-        # Validation için train'den ayır
-        val_size = int(len(train_signals) * 0.125)  # ~%10 of total
-        val_idx = np.random.choice(len(train_signals), val_size, replace=False)
-        train_mask = np.ones(len(train_signals), dtype=bool)
-        train_mask[val_idx] = False
-        
-        val_signals = train_signals[val_idx]
-        val_labels = train_labels[val_idx]
-        train_signals = train_signals[train_mask]
-        train_labels = train_labels[train_mask]
-        
-        print(f"  → Train: {len(train_signals)}, Val: {len(val_signals)}, Test: {len(test_signals)}")
-        
         # Dataset ve DataLoader oluştur
         train_dataset = BonnEEGDataset(train_signals, train_labels)
-        val_dataset = BonnEEGDataset(val_signals, val_labels)
         test_dataset = BonnEEGDataset(test_signals, test_labels)
         
         batch_size = training_config["batch_size"]
         
         train_loader = DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
-        )
-        val_loader = DataLoader(
-            val_dataset, batch_size=batch_size, shuffle=False
+            train_dataset, batch_size=batch_size, shuffle=True, drop_last=False
         )
         test_loader = DataLoader(
             test_dataset, batch_size=batch_size, shuffle=False
@@ -278,9 +227,9 @@ def run_kfold_cv(
         # Model oluştur
         model = EpiGraphNet.from_config(config).to(device)
         
-        # Eğit
-        model, train_metrics = train_fold(
-            model, train_loader, val_loader, config, device, fold
+        # Eğit (validation split yok, sabit epoch)
+        model = train_fold(
+            model, train_loader, config, device, fold
         )
         
         # Test et
@@ -422,10 +371,20 @@ def main():
         default=42,
         help="Random seed (varsayılan: 42)"
     )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=100,
+        help="Epoch sayısı (varsayılan: 100, daha iyi yakınsama için)"
+    )
     args = parser.parse_args()
     
     # Konfigürasyon yükle
     config = load_config(args.config)
+    
+    # Epoch sayısını override et (K-Fold için daha fazla epoch gerekli)
+    config["training"]["num_epochs"] = args.epochs
+    print(f"K-Fold için epoch sayısı: {args.epochs}")
     
     # K-Fold Cross-Validation yap
     summary = run_kfold_cv(
