@@ -5,7 +5,7 @@
 data:
   data_dir: "data/bonn"
   sampling_rate: 173.61  # Hz
-  segment_length: 4097   # 23.6 saniye * 173.61 Hz (gerçek Bonn verisi)
+  segment_length: 4096   # 23.6 saniye * 173.61 Hz (resmi Bonn verisi: 4096)
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1

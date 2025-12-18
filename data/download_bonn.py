@@ -209,8 +209,9 @@ def verify_dataset(data_dir: str = "data/bonn") -> dict:
         stats['is_valid'] = False
         stats['warnings'].append(f"Eksik dosya! Beklenen: 500, Bulunan: {stats['total_files']}")
     
-    if stats['signal_length'] is not None and stats['signal_length'] != 4097:
-        stats['warnings'].append(f"Sinyal uzunluğu: {stats['signal_length']} (Beklenen: 4097)")
+    # Resmi kaynak 4096 örnek belirtiyor (bazı kaynaklar 4097 der)
+    if stats['signal_length'] is not None and stats['signal_length'] not in [4096, 4097]:
+        stats['warnings'].append(f"Sinyal uzunluğu: {stats['signal_length']} (Beklenen: 4096 veya 4097)")
     
     return stats
 

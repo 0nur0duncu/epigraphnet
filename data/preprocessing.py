@@ -103,14 +103,15 @@ def load_bonn_file(filepath: str) -> np.ndarray:
     """
     Bonn veri kümesinden tek bir dosya yükler.
     
-    Not: Resmi Bonn veri kümesi her dosyada 4097 örnek içerir.
-    (23.6 saniye × 173.61 Hz ≈ 4097)
+    Not: Resmi Bonn veri kümesi (UPF) her dosyada 4096 örnek içerir.
+    (23.6 saniye × 173.61 Hz ≈ 4096)
+    Bazı GitHub kaynakları 4097 örnek içerebilir.
     
     Args:
         filepath: Dosya yolu (.txt formatı)
         
     Returns:
-        EEG sinyali (4097,)
+        EEG sinyali (4096 veya 4097,)
     """
     try:
         signal = np.loadtxt(filepath)
