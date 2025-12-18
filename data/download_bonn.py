@@ -1,8 +1,8 @@
 """
 Bonn Epileptik EEG Veri Kümesi İndirme Scripti
 
-Resmi Kaynak: https://www.upf.edu/web/ntsa/downloads (UPF NTSA - Ralph Andrzejak)
-Referans: Andrzejak RG, et al. (2001) Phys. Rev. E, 64, 061907
+Kaynak: GitHub - RYH2077/EEG-Epilepsy-Datasets
+Orijinal Referans: Andrzejak RG, et al. (2001) Phys. Rev. E, 64, 061907
 
 Veri kümesi yapısı:
 - Set A (Z): 100 segment, sağlıklı gönüllüler, gözler açık
@@ -18,26 +18,11 @@ import os
 import zipfile
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 
-# Bonn veri kümesi resmi URL'leri
-# Kaynak: UPF NTSA (Ralph Andrzejak Lab)
-# https://www.upf.edu/web/ntsa/downloads
-BONN_SET_URLS = {
-    "Z": "https://www.upf.edu/documents/229517819/234490509/Z.zip/9c4a0084-c0d6-3cf6-fe48-8a8767713e67",  # Set A
-    "O": "https://www.upf.edu/documents/229517819/234490509/O.zip/f324f98f-1ade-e912-b89d-e313ac362b6a",  # Set B
-    "N": "https://www.upf.edu/documents/229517819/234490509/N.zip/d4f08e2d-3b27-1a6a-20fe-96dcf644902b",  # Set C
-    "F": "https://www.upf.edu/documents/229517819/234490509/F.zip/8219dcdd-d184-0474-e0e9-1ccbba43aaee",  # Set D
-    "S": "https://www.upf.edu/documents/229517819/234490509/S.zip/7647d3f7-c6bb-6d72-57f7-8f12972896a6",  # Set E
-}
-
-# GitHub alternatif kaynak (tam veri seti)
+# Tam Bonn veri seti (500 dosya)
 # Kaynak: RYH2077/EEG-Epilepsy-Datasets
-GITHUB_FULL_DATASET_URL = "https://github.com/RYH2077/EEG-Epilepsy-Datasets/releases/download/v1.0/Bonn.EEG.dataset.zip"
-
-# Yedek URL - kullanılmıyor (Bonn sunucusu kapalı)
-BONN_SET_URLS_BACKUP = {}
+DATASET_URL = "https://github.com/RYH2077/EEG-Epilepsy-Datasets/raw/master/Bonn%20EEG%20dataset.zip"
 
 
 def download_file(url: str, save_path: str, chunk_size: int = 8192) -> bool:
@@ -53,7 +38,6 @@ def download_file(url: str, save_path: str, chunk_size: int = 8192) -> bool:
         Başarılı mı
     """
     try:
-        # User-Agent header ekle (bazı sunucular bunu gerektiriyor)
         req = urllib.request.Request(
             url,
             headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -83,132 +67,12 @@ def download_file(url: str, save_path: str, chunk_size: int = 8192) -> bool:
         return False
 
 
-def download_from_github_alternative(data_dir: str) -> bool:
-    """
-    GitHub alternatif kaynağından tam Bonn veri setini indirir.
-    
-    Kaynak: RYH2077/EEG-Epilepsy-Datasets
-    Bu kaynak tam 500 dosyayı içerir.
-    
-    Args:
-        data_dir: Hedef dizin
-        
-    Returns:
-        Başarılı mı
-    """
-    import shutil
-    
-    print("\n" + "-"*40)
-    print("GitHub alternatif kaynağından indiriliyor...")
-    print(f"Kaynak: RYH2077/EEG-Epilepsy-Datasets")
-    print("-"*40)
-    
-    data_path = Path(data_dir)
-    data_path.mkdir(parents=True, exist_ok=True)
-    
-    # GitHub release dosyasını indir
-    zip_path = data_path / "Bonn_EEG_github.zip"
-    
-    success = download_file(GITHUB_FULL_DATASET_URL, str(zip_path))
-    
-    if not success:
-        # Alternatif: Ham dosya URL'sini dene
-        alt_url = "https://github.com/RYH2077/EEG-Epilepsy-Datasets/raw/master/Bonn%20EEG%20dataset.zip"
-        print("  → Alternatif GitHub URL deneniyor...")
-        success = download_file(alt_url, str(zip_path))
-    
-    if not success:
-        print("  ✗ GitHub'dan indirme başarısız!")
-        return False
-    
-    # ZIP'i çıkar
-    try:
-        print(f"Çıkarılıyor: {zip_path}")
-        
-        extracted_count = 0
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # ZIP içeriğini kontrol et
-            all_items = zip_ref.namelist()
-            print(f"  ZIP içeriği: {len(all_items)} öğe")
-            
-            for item in all_items:
-                # .txt dosyalarını bul (case-insensitive)
-                if item.lower().endswith('.txt'):
-                    # Dosya adını al
-                    filename = os.path.basename(item)
-                    if filename:
-                        # Hedef yol
-                        target_path = os.path.join(data_dir, filename)
-                        
-                        # ZIP'ten oku ve yaz
-                        with zip_ref.open(item) as source:
-                            with open(target_path, 'wb') as target:
-                                target.write(source.read())
-                        
-                        extracted_count += 1
-        
-        print(f"  ✓ GitHub'dan {extracted_count} dosya çıkarıldı!")
-        
-        # ZIP'i sil
-        zip_path.unlink()
-        
-        return extracted_count > 0
-        
-    except Exception as e:
-        print(f"  ✗ GitHub ZIP çıkarma hatası: {e}")
-        return False
-
-
-def extract_zip(zip_path: str, extract_to: str) -> bool:
-    """
-    ZIP dosyasını çıkarır. Alt dizinlerdeki dosyaları kök dizine çıkarır.
-    
-    Args:
-        zip_path: ZIP dosya yolu
-        extract_to: Çıkarma dizini
-        
-    Returns:
-        Başarılı mı
-    """
-    try:
-        print(f"Çıkarılıyor: {zip_path}")
-        
-        extracted_count = 0
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # Tüm dosyaları listele
-            for item in zip_ref.namelist():
-                # Sadece .txt veya .TXT dosyalarını al (case-insensitive)
-                if item.lower().endswith('.txt'):
-                    # Dosya adını al (alt dizin yolunu görmezden gel)
-                    filename = os.path.basename(item)
-                    if filename:  # Boş değilse
-                        # Hedef yol
-                        target_path = os.path.join(extract_to, filename)
-                        
-                        # ZIP'ten oku ve yaz
-                        with zip_ref.open(item) as source:
-                            with open(target_path, 'wb') as target:
-                                target.write(source.read())
-                        
-                        extracted_count += 1
-        
-        print(f"  ✓ Çıkarma tamamlandı! ({extracted_count} dosya)")
-        return True
-        
-    except Exception as e:
-        print(f"  ✗ Çıkarma hatası: {e}")
-        return False
-
-
 def download_bonn_dataset(
     data_dir: str = "data/bonn",
     force_download: bool = False
 ) -> bool:
     """
-    Bonn EEG veri kümesini orijinal kaynaktan indirir.
-    
-    Her seti (Z, O, N, F, S) ayrı ayrı indirir ve çıkarır.
-    Orijinal URL başarısız olursa yedek URL denenir.
+    Bonn EEG veri kümesini GitHub'dan indirir.
     
     Args:
         data_dir: Hedef dizin
@@ -238,63 +102,47 @@ def download_bonn_dataset(
     
     print("="*60)
     print("Bonn Epileptik EEG Veri Kümesi İndirme")
-    print("Kaynak: Bonn Üniversitesi Epileptoloji")
+    print("Kaynak: GitHub - RYH2077/EEG-Epilepsy-Datasets")
     print("="*60)
     
-    total_files = 0
-    failed_sets = []
+    # ZIP dosyasını indir
+    zip_path = data_path / "bonn_dataset.zip"
     
-    # Her seti ayrı ayrı indir
-    for set_name, url in BONN_SET_URLS.items():
-        print(f"\n[{set_name}] Set indiriliyor...")
+    print("\nVeri seti indiriliyor...")
+    success = download_file(DATASET_URL, str(zip_path))
+    
+    if not success:
+        print("✗ İndirme başarısız!")
+        return False
+    
+    # ZIP'i çıkar
+    try:
+        print(f"\nÇıkarılıyor: {zip_path}")
         
-        zip_path = data_path / f"{set_name}.zip"
+        extracted_count = 0
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            for item in zip_ref.namelist():
+                # .txt dosyalarını bul (case-insensitive)
+                if item.lower().endswith('.txt'):
+                    filename = os.path.basename(item)
+                    if filename:
+                        target_path = os.path.join(data_dir, filename)
+                        with zip_ref.open(item) as source:
+                            with open(target_path, 'wb') as target:
+                                target.write(source.read())
+                        extracted_count += 1
         
-        # Önce orijinal URL'yi dene
-        success = download_file(url, str(zip_path))
+        print(f"  ✓ {extracted_count} dosya çıkarıldı!")
         
-        # Başarısız olursa yedek URL'yi dene
-        if not success and set_name in BONN_SET_URLS_BACKUP:
-            print(f"  → Yedek URL deneniyor...")
-            success = download_file(BONN_SET_URLS_BACKUP[set_name], str(zip_path))
+        # ZIP'i sil
+        zip_path.unlink()
         
-        if success:
-            # ZIP'i çıkar
-            if extract_zip(str(zip_path), str(data_path)):
-                # ZIP'i sil
-                zip_path.unlink()
-                
-                # İndirilen dosyaları say
-                set_files = list(data_path.glob(f"{set_name}*.txt"))
-                total_files += len(set_files)
-                print(f"  → {len(set_files)} dosya çıkarıldı")
-            else:
-                failed_sets.append(set_name)
-        else:
-            failed_sets.append(set_name)
+    except Exception as e:
+        print(f"  ✗ Çıkarma hatası: {e}")
+        return False
     
     print("\n" + "="*60)
-    
-    if failed_sets:
-        print(f"UYARI: Bazı setler indirilemedi: {failed_sets}")
-        print("GitHub alternatif kaynağından indirme deneniyor...")
-        
-        # GitHub'dan tam veri setini indir
-        if download_from_github_alternative(str(data_path)):
-            # Eksik dosyaları kontrol et
-            for set_name in failed_sets:
-                set_files = list(data_path.glob(f"{set_name}*.txt"))
-                if len(set_files) >= 100:
-                    print(f"  ✓ {set_name} seti GitHub'dan başarıyla alındı ({len(set_files)} dosya)")
-                    total_files += len(set_files)
-            
-            # Tüm dosyaları yeniden say
-            total_files = len(list(data_path.glob("*.txt")))
-        else:
-            print("Manuel indirme için: https://github.com/RYH2077/EEG-Epilepsy-Datasets")
-            return False
-    
-    print(f"✓ Toplam {total_files} dosya başarıyla indirildi!")
+    print(f"✓ Toplam {extracted_count} dosya başarıyla indirildi!")
     print(f"  Konum: {data_path.absolute()}")
     
     # Veri doğrulama
@@ -302,7 +150,8 @@ def download_bonn_dataset(
     if verification['is_valid']:
         print("✓ Veri kümesi doğrulandı!")
     else:
-        print(f"UYARI: Veri kümesi eksik - {verification}")
+        for warning in verification.get('warnings', []):
+            print(f"UYARI: {warning}")
     
     return True
 
@@ -322,13 +171,14 @@ def verify_dataset(data_dir: str = "data/bonn") -> dict:
     data_path = Path(data_dir)
     
     if not data_path.exists():
-        return {"error": "Dizin bulunamadı"}
+        return {"error": "Dizin bulunamadı", "is_valid": False}
     
     stats = {
         'total_files': 0,
         'classes': {},
         'signal_length': None,
-        'valid': True
+        'is_valid': True,
+        'warnings': []
     }
     
     prefixes = ['Z', 'O', 'N', 'F', 'S']
@@ -354,14 +204,10 @@ def verify_dataset(data_dir: str = "data/bonn") -> dict:
             stats['signal_length'] = len(signal)
     
     # Doğrulama
-    stats['is_valid'] = True
-    stats['warnings'] = []
-    
     if stats['total_files'] < 500:
         stats['is_valid'] = False
         stats['warnings'].append(f"Eksik dosya! Beklenen: 500, Bulunan: {stats['total_files']}")
     
-    # Gerçek Bonn verisi 4097 nokta içerir (23.6s × 173.61Hz)
     if stats['signal_length'] is not None and stats['signal_length'] != 4097:
         stats['warnings'].append(f"Sinyal uzunluğu: {stats['signal_length']} (Beklenen: 4097)")
     
@@ -425,4 +271,3 @@ if __name__ == "__main__":
         print_dataset_info(args.data_dir)
     else:
         download_bonn_dataset(args.data_dir, args.force)
-        print_dataset_info(args.data_dir)
