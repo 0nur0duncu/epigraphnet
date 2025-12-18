@@ -115,6 +115,13 @@ def run_multiple_evaluations(
         # Checkpoint yükle (varsa)
         if checkpoint_path and os.path.exists(checkpoint_path):
             checkpoint = torch.load(checkpoint_path, map_location=device)
+            
+            # Lazy initialization için önce bir dummy forward yap
+            # Bu GCN modülünü başlatır
+            dummy_input = torch.randn(1, 1, 4097).to(device)
+            with torch.no_grad():
+                _ = model(dummy_input)
+            
             model.load_state_dict(checkpoint["model_state_dict"])
             print(f"Checkpoint yüklendi: {checkpoint_path}")
         
