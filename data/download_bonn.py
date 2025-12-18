@@ -22,25 +22,18 @@ from typing import Optional
 
 
 # Bonn veri kümesi resmi URL'leri
-# Kaynak 1: Bonn Üniversitesi Epileptoloji (Orijinal)
-# Kaynak 2: UPF NTSA (Yedek)
+# Kaynak: UPF NTSA (Ralph Andrzejak Lab)
+# https://www.upf.edu/web/ntsa/downloads
 BONN_SET_URLS = {
-    # Orijinal Bonn Üniversitesi URL'leri (daha güvenilir)
-    "Z": "http://epileptologie-bonn.de/cms/upload/workgroup/lehnertz/Z.zip",  # Set A
-    "O": "http://epileptologie-bonn.de/cms/upload/workgroup/lehnertz/O.zip",  # Set B
-    "N": "http://epileptologie-bonn.de/cms/upload/workgroup/lehnertz/N.zip",  # Set C
-    "F": "http://epileptologie-bonn.de/cms/upload/workgroup/lehnertz/F.zip",  # Set D
-    "S": "http://epileptologie-bonn.de/cms/upload/workgroup/lehnertz/S.zip",  # Set E
+    "Z": "https://www.upf.edu/documents/229517819/234490509/Z.zip/9c4a0084-c0d6-3cf6-fe48-8a8767713e67",  # Set A
+    "O": "https://www.upf.edu/documents/229517819/234490509/O.zip/f324f98f-1ade-e912-b89d-e313ac362b6a",  # Set B
+    "N": "https://www.upf.edu/documents/229517819/234490509/N.zip/d4f08e2d-3b27-1a6a-20fe-96dcf644902b",  # Set C
+    "F": "https://www.upf.edu/documents/229517819/234490509/F.zip/8219dcdd-d184-0474-e0e9-1ccbba43aaee",  # Set D
+    "S": "https://www.upf.edu/documents/229517819/234490509/S.zip/7647d3f7-c6bb-6d72-57f7-8f12972896a6",  # Set E
 }
 
-# Yedek URL'ler (UPF NTSA)
-BONN_SET_URLS_BACKUP = {
-    "Z": "https://www.upf.edu/documents/229517819/234490509/Z.zip/9c4a0084-c0d6-3cf6-fe48-8a8767713e67",
-    "O": "https://www.upf.edu/documents/229517819/234490509/O.zip/f324f98f-1ade-e912-b89d-e313ac362b6a",
-    "N": "https://www.upf.edu/documents/229517819/234490509/N.zip/d4f08e2d-3b27-1a6a-20fe-96dcf644902b",
-    "F": "https://www.upf.edu/documents/229517819/234490509/F.zip/8219dcdd-d184-0474-e0e9-1ccbba43aaee",
-    "S": "https://www.upf.edu/documents/229517819/234490509/S.zip/7647d3f7-c6bb-6d72-57f7-8f12972896a6",
-}
+# Yedek URL - kullanılmıyor (Bonn sunucusu kapalı)
+BONN_SET_URLS_BACKUP = {}
 
 
 def download_file(url: str, save_path: str, chunk_size: int = 8192) -> bool:
