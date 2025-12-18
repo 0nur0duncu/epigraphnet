@@ -416,8 +416,13 @@ def run_gradcam_analysis(
         signal = signals[idx]
         label = labels[idx]
         
-        # Tensor'a dönüştür
-        x = torch.tensor(signal, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
+        # Signal'ı 1D'ye düzleştir
+        if hasattr(signal, 'ndim') and signal.ndim > 1:
+            signal = signal.flatten()
+        signal = np.asarray(signal).flatten()
+        
+        # Tensor'a dönüştür: (batch=1, channels=1, length)
+        x = torch.tensor(signal, dtype=torch.float32).view(1, 1, -1).to(device)
         
         # Grad-CAM hesapla
         cam, pred_class = gradcam(x)
