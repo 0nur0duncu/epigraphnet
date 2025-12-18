@@ -8,6 +8,7 @@ from .metrics import (
     calculate_recall,
     calculate_f1,
     calculate_all_metrics,
+    get_confusion_matrix,
     MetricTracker
 )
 from .visualization import (
@@ -22,6 +23,7 @@ __all__ = [
     "calculate_recall",
     "calculate_f1",
     "calculate_all_metrics",
+    "get_confusion_matrix",
     "MetricTracker",
     "plot_training_curves",
     "plot_confusion_matrix",
