@@ -2,6 +2,10 @@
 EpiGraphNet Ana Model
 Makaledeki Şekil 1 - Genel mimari
 CNN-LSTM + KBM + GCN entegrasyonu
+
+NOT: Makaledeki Eşitlik 14'e göre GCN tek W matrisi kullanmalı.
+PyTorch Geometric'in GraphConv'u iki matris kullandığı için,
+her zaman ManualGraphConv ile adjacency matrix tabanlı çalışıyoruz.
 """
 
 import torch
@@ -11,13 +15,6 @@ from typing import Dict, Any, Optional, Literal, List
 from .cnn_lstm import CNNLSTM
 from .graph_builder import GraphBuilder
 from .gcn_module import GCNClassifier
-
-# PyTorch Geometric kontrolü
-try:
-    from torch_geometric.data import Data, Batch
-    HAS_PYG = True
-except ImportError:
-    HAS_PYG = False
 
 
 class EpiGraphNet(nn.Module):
@@ -77,7 +74,6 @@ class EpiGraphNet(nn.Module):
         super().__init__()
         
         self.num_nodes = num_nodes
-        self.use_pyg = HAS_PYG
         
         # 1. CNN-LSTM Modülü (Şekil 1'e göre)
         self.cnn_lstm = CNNLSTM(
@@ -143,48 +139,13 @@ class EpiGraphNet(nn.Module):
             self._init_gcn(node_features.shape[-1])
             self.gcn = self.gcn.to(x.device)
         
-        # 3. GCN ile sınıflandırma
-        if self.use_pyg:
-            logits = self._forward_with_pyg(
-                node_features, edge_index, batch_size
-            )
-        else:
-            # Adjacency matrix oluştur
-            adjacency = self._edge_index_to_adjacency(
-                edge_index, self.num_nodes, batch_size, x.device
-            )
-            logits = self.gcn(
-                node_features, edge_index, adjacency=adjacency
-            )
-        
-        return logits
-    
-    def _forward_with_pyg(
-        self,
-        node_features: torch.Tensor,
-        edge_index: torch.Tensor,
-        batch_size: int
-    ) -> torch.Tensor:
-        """PyTorch Geometric ile forward."""
-        # Her örnek için ayrı grafik oluştur
-        data_list = []
-        
-        for i in range(batch_size):
-            data = Data(
-                x=node_features[i],  # (N, F)
-                edge_index=edge_index
-            )
-            data_list.append(data)
-        
-        # Batch oluştur
-        batch = Batch.from_data_list(data_list)
-        batch = batch.to(node_features.device)
-        
-        # GCN forward
+        # 3. GCN ile sınıflandırma (her zaman adjacency matrix tabanlı)
+        # Makaleye uyumluluk için ManualGraphConv kullanıyoruz
+        adjacency = self._edge_index_to_adjacency(
+            edge_index, self.num_nodes, batch_size, x.device
+        )
         logits = self.gcn(
-            batch.x,
-            batch.edge_index,
-            batch=batch.batch
+            node_features, edge_index=None, adjacency=adjacency
         )
         
         return logits
