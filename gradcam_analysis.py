@@ -74,10 +74,19 @@ class GradCAM:
             cam: Grad-CAM haritası (batch, length)
             pred_class: Tahmin edilen sınıf
         """
-        self.model.eval()
+        # cuDNN LSTM backward için training mode gerekli
+        # Ama dropout'u devre dışı bırakmak için eval mode ile başlayıp
+        # sadece LSTM'i training moduna alıyoruz
+        self.model.train()  # Backward pass için training mode gerekli
+        
+        # Dropout'ları manuel olarak devre dışı bırak
+        for module in self.model.modules():
+            if isinstance(module, nn.Dropout):
+                module.eval()
         
         # Forward pass
-        output = self.model(x)
+        with torch.enable_grad():
+            output = self.model(x)
         
         if class_idx is None:
             class_idx = output.argmax(dim=1).item()
