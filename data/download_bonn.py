@@ -77,7 +77,7 @@ def download_file(url: str, save_path: str, chunk_size: int = 8192) -> bool:
 
 def extract_zip(zip_path: str, extract_to: str) -> bool:
     """
-    ZIP dosyasını çıkarır.
+    ZIP dosyasını çıkarır. Alt dizinlerdeki dosyaları kök dizine çıkarır.
     
     Args:
         zip_path: ZIP dosya yolu
@@ -89,10 +89,26 @@ def extract_zip(zip_path: str, extract_to: str) -> bool:
     try:
         print(f"Çıkarılıyor: {zip_path}")
         
+        extracted_count = 0
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_to)
+            # Tüm dosyaları listele
+            for item in zip_ref.namelist():
+                # Sadece .txt dosyalarını al
+                if item.endswith('.txt'):
+                    # Dosya adını al (alt dizin yolunu görmezden gel)
+                    filename = os.path.basename(item)
+                    if filename:  # Boş değilse
+                        # Hedef yol
+                        target_path = os.path.join(extract_to, filename)
+                        
+                        # ZIP'ten oku ve yaz
+                        with zip_ref.open(item) as source:
+                            with open(target_path, 'wb') as target:
+                                target.write(source.read())
+                        
+                        extracted_count += 1
         
-        print("  ✓ Çıkarma tamamlandı!")
+        print(f"  ✓ Çıkarma tamamlandı! ({extracted_count} dosya)")
         return True
         
     except Exception as e:

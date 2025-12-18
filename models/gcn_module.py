@@ -183,7 +183,7 @@ class GCNClassifier(nn.Module):
         # Eşitlik 15: Global max pooling
         x = global_max_pool(x, batch)  # (batch_size, hidden_channels)
         
-        # Şekil 1'e göre: FC -> Dropout -> Softmax
+        # Eşitlik 16: FC -> Dropout (softmax CrossEntropyLoss içinde)
         x = self.fc(x)
         x = self.final_dropout(x)
         
@@ -204,7 +204,7 @@ class GCNClassifier(nn.Module):
         # Eşitlik 15: Global max pooling (düğümler üzerinden)
         x = x.max(dim=1)[0]  # (batch, hidden_channels)
         
-        # Şekil 1'e göre: FC -> Dropout
+        # Eşitlik 16: FC -> Dropout (softmax CrossEntropyLoss içinde)
         x = self.fc(x)
         x = self.final_dropout(x)
         

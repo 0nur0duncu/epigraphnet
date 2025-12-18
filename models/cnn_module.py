@@ -68,6 +68,11 @@ class CNNEncoder(nn.Module):
     """
     Çok katmanlı 1D CNN Encoder.
     Birden fazla CNNBlock'u sıralı olarak uygular.
+    
+    Makaledeki Eşitlik 2-4:
+    - Conv1D blokları (Eşitlik 2)
+    - Flatten + FC (Eşitlik 3)
+    - Dropout (Eşitlik 4)
     """
     
     def __init__(
@@ -85,8 +90,8 @@ class CNNEncoder(nn.Module):
             conv_channels: Her katmandaki kanal sayıları
             kernel_sizes: Her katmandaki kernel boyutları
             pool_size: İlk katmandaki MaxPool boyutu (Şekil 1)
-            fc_hidden: FC katman gizli boyutu
-            dropout: Dropout oranı
+            fc_hidden: FC katman gizli boyutu (Eşitlik 3)
+            dropout: Dropout oranı (Eşitlik 4)
         """
         super().__init__()
         
@@ -111,9 +116,12 @@ class CNNEncoder(nn.Module):
         self.cnn_blocks = nn.Sequential(*blocks)
         self.flatten = nn.Flatten()
         
+        # Eşitlik 3: z = FC(flatten(x^L_CNN))
         # FC katman - boyut lazy olarak hesaplanacak
         self.fc = None
         self.fc_hidden = fc_hidden
+        
+        # Eşitlik 4: z_drop = Dropout(z, p)
         self.dropout = nn.Dropout(dropout)
         self._initialized = False
         
@@ -122,16 +130,18 @@ class CNNEncoder(nn.Module):
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
+        Makaledeki Eşitlik 2-4'ü uygular.
+        
         Args:
             x: Giriş tensörü (batch, 1, length)
             
         Returns:
-            Öznitelik vektörü (batch, fc_hidden)
+            Öznitelik vektörü z_drop (batch, fc_hidden)
         """
-        # CNN blokları
+        # Eşitlik 2: CNN blokları
         x = self.cnn_blocks(x)
         
-        # Flatten
+        # Eşitlik 3: Flatten + FC
         x = self.flatten(x)
         
         # FC katmanını lazy başlat
@@ -140,8 +150,9 @@ class CNNEncoder(nn.Module):
             self.fc = nn.Linear(flat_size, self.fc_hidden).to(x.device)
             self._initialized = True
         
-        # FC + Dropout
         x = self.fc(x)
+        
+        # Eşitlik 4: Dropout
         x = self.dropout(x)
         
         return x
