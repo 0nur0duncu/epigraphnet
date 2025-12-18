@@ -75,7 +75,7 @@ def load_bonn_dataset(
     valid_prefixes = ['Z', 'O', 'N', 'F', 'S']
     
     for filename in sorted(os.listdir(data_dir)):
-        if not filename.endswith('.txt'):
+        if not filename.lower().endswith('.txt'):
             continue
         
         prefix = filename[0].upper()

@@ -87,7 +87,7 @@ def download_bonn_dataset(
     
     # Mevcut veri kontrolü
     if data_path.exists() and not force_download:
-        txt_files = list(data_path.glob("*.txt"))
+        txt_files = list(data_path.glob("*.txt")) + list(data_path.glob("*.TXT"))
         if len(txt_files) >= 500:
             print(f"✓ Veri zaten mevcut: {data_dir} ({len(txt_files)} dosya)")
             return True
@@ -191,7 +191,8 @@ def verify_dataset(data_dir: str = "data/bonn") -> dict:
     }
     
     for prefix in prefixes:
-        files = list(data_path.glob(f"{prefix}*.txt"))
+        # Hem küçük hem büyük harf uzantıları ara
+        files = list(data_path.glob(f"{prefix}*.txt")) + list(data_path.glob(f"{prefix}*.TXT"))
         stats['classes'][prefix] = {
             'count': len(files),
             'name': class_names[prefix]
