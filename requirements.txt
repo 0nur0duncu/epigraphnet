@@ -26,6 +26,9 @@ tqdm>=4.65.0
 # Scikit-learn (metrikler ve veri bölme)
 scikit-learn>=1.3.0
 
+# Tablo formatı
+tabulate>=0.9.0
+
 # Deney Takibi (opsiyonel)
 tensorboard>=2.14.0
 # wandb>=0.15.0
