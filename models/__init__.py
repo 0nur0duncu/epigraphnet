@@ -9,6 +9,7 @@ from .cnn_lstm import CNNLSTM
 from .graph_builder import GraphBuilder, CorrelationMatrixBuilder
 from .gcn_module import GCNClassifier
 from .epigraphnet import EpiGraphNet
+from .epigraphnet_simple import EpiGraphNetSimple
 
 __all__ = [
     "CNNBlock",
@@ -19,4 +20,5 @@ __all__ = [
     "CorrelationMatrixBuilder",
     "GCNClassifier",
     "EpiGraphNet",
+    "EpiGraphNetSimple",
 ]

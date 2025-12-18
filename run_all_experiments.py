@@ -300,22 +300,18 @@ def create_model(
         )
     
     elif model_type.startswith("EpiGraphNet"):
-        model_config = config["model"] if config else {}
-        return EpiGraphNet(
+        # Basitleştirilmiş model kullan - daha stabil
+        from models.epigraphnet_simple import EpiGraphNetSimple
+        return EpiGraphNetSimple(
             in_channels=1,
-            conv_channels=model_config.get("cnn", {}).get("conv_channels", [16, 32, 64]),
-            kernel_sizes=model_config.get("cnn", {}).get("kernel_sizes", [5, 5, 5]),
-            pool_size=model_config.get("cnn", {}).get("pool_size", 2),
-            fc_hidden=model_config.get("fc_hidden", 128),
-            lstm_hidden=model_config.get("lstm", {}).get("hidden_size", 64),
-            lstm_layers=model_config.get("lstm", {}).get("num_layers", 2),
-            sequence_length=model_config.get("lstm", {}).get("sequence_length", 8),
-            num_windows=model_config.get("graph", {}).get("num_windows", 8),
-            num_nodes=model_config.get("graph", {}).get("num_nodes", 16),
+            conv_channels=[16, 32, 64],
+            lstm_hidden=64,
+            lstm_layers=2,
+            num_nodes=16,
             sparsity=sparsity,
             thresholding=thresholding,
-            gcn_hidden=model_config.get("gcn", {}).get("hidden_channels", 64),
-            gcn_layers=model_config.get("gcn", {}).get("num_layers", 3),
+            gcn_hidden=64,
+            gcn_layers=3,
             num_classes=num_classes,
             dropout=dropout
         )
@@ -400,29 +396,34 @@ def run_single_experiment(
         weight_decay=training_config["weight_decay"]
     )
     
-    # Scheduler
-    scheduler = LinearLR(
-        optimizer,
-        start_factor=0.1,
-        total_iters=10
-    )
+    # Scheduler - Cosine Annealing daha stabil
+    from torch.optim.lr_scheduler import CosineAnnealingLR
+    num_epochs = training_config["num_epochs"]
     
-    # Early stopping
+    # EpiGraphNet için daha fazla epoch
+    if model_type.startswith("EpiGraphNet"):
+        num_epochs = max(num_epochs, 100)  # En az 100 epoch
+    
+    scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    
+    # Early stopping - EpiGraphNet için daha sabırlı
     patience = training_config.get("early_stopping", {}).get("patience", 15)
+    if model_type.startswith("EpiGraphNet"):
+        patience = 25  # Daha sabırlı
+    
     min_delta = training_config.get("early_stopping", {}).get("min_delta", 0.001)
-    best_val_loss = float("inf")
+    best_val_acc = 0.0  # Loss yerine accuracy kullan
     patience_counter = 0
     best_state = None
-    
-    num_epochs = training_config["num_epochs"]
     
     for epoch in range(1, num_epochs + 1):
         train_metrics = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_metrics = validate(model, val_loader, criterion, device)
         scheduler.step()
         
-        if val_metrics["loss"] < best_val_loss - min_delta:
-            best_val_loss = val_metrics["loss"]
+        # Accuracy'ye göre best model seç
+        if val_metrics["accuracy"] > best_val_acc + min_delta:
+            best_val_acc = val_metrics["accuracy"]
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             patience_counter = 0
         else:
