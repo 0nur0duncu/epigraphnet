@@ -34,6 +34,21 @@ import json
 from datetime import datetime
 from tabulate import tabulate
 
+# Görselleştirme
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Matplotlib ayarları
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.rcParams['figure.figsize'] = (12, 8)
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.titlesize'] = 14
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
+plt.rcParams['legend.fontsize'] = 10
+plt.rcParams['figure.dpi'] = 100
+
 from models import EpiGraphNet
 from models.cnn_lstm import CNNLSTM
 from data import BonnEEGDataset
@@ -502,6 +517,270 @@ def run_experiment_suite(
     return avg_results
 
 
+# ============================================================================
+# Görselleştirme Fonksiyonları
+# ============================================================================
+
+def plot_accuracy_comparison(all_results: Dict, paper_results: Dict, output_dir: str = "figures"):
+    """
+    Model doğruluklarını karşılaştıran bar chart.
+    Makale sonuçları ile yan yana gösterir.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for class_name in all_results["experiments"]:
+        class_label = "İkili Sınıflandırma" if class_name == "binary" else "Çok Sınıflı Sınıflandırma"
+        
+        models = list(all_results["experiments"][class_name].keys())
+        our_acc = [all_results["experiments"][class_name][m]["accuracy"] for m in models]
+        paper_acc = [paper_results.get(class_name, {}).get(m, {}).get("accuracy", 0) for m in models]
+        
+        x = np.arange(len(models))
+        width = 0.35
+        
+        fig, ax = plt.subplots(figsize=(14, 7))
+        
+        bars1 = ax.bar(x - width/2, paper_acc, width, label='Makale', color='#2196F3', alpha=0.8)
+        bars2 = ax.bar(x + width/2, our_acc, width, label='Bizim', color='#4CAF50', alpha=0.8)
+        
+        ax.set_ylabel('Doğruluk (%)')
+        ax.set_title(f'{class_label} - Model Karşılaştırması')
+        ax.set_xticks(x)
+        ax.set_xticklabels(models, rotation=45, ha='right')
+        ax.legend()
+        ax.set_ylim([0, 105])
+        
+        # Değerleri bar üstüne yaz
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:.1f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points",
+                        ha='center', va='bottom', fontsize=9)
+        
+        for bar in bars2:
+            height = bar.get_height()
+            ax.annotate(f'{height:.1f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points",
+                        ha='center', va='bottom', fontsize=9)
+        
+        plt.tight_layout()
+        filename = f"{output_dir}/accuracy_comparison_{class_name}.png"
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"  ✓ Kaydedildi: {filename}")
+
+
+def plot_metrics_heatmap(all_results: Dict, output_dir: str = "figures"):
+    """
+    Tüm metrikleri gösteren heatmap.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for class_name in all_results["experiments"]:
+        class_label = "İkili Sınıflandırma" if class_name == "binary" else "Çok Sınıflı Sınıflandırma"
+        
+        models = list(all_results["experiments"][class_name].keys())
+        metrics = ["accuracy", "recall", "precision", "f1"]
+        metric_labels = ["Doğruluk", "Duyarlılık", "Kesinlik", "F1"]
+        
+        data = []
+        for model in models:
+            row = [all_results["experiments"][class_name][model].get(m, 0) for m in metrics]
+            data.append(row)
+        
+        data = np.array(data)
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        sns.heatmap(
+            data, 
+            annot=True, 
+            fmt='.2f',
+            cmap='RdYlGn',
+            xticklabels=metric_labels,
+            yticklabels=models,
+            vmin=0,
+            vmax=100,
+            ax=ax,
+            linewidths=0.5,
+            cbar_kws={'label': 'Değer (%)'}
+        )
+        
+        ax.set_title(f'{class_label} - Metrik Değerleri')
+        plt.tight_layout()
+        filename = f"{output_dir}/metrics_heatmap_{class_name}.png"
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"  ✓ Kaydedildi: {filename}")
+
+
+def plot_model_radar(all_results: Dict, output_dir: str = "figures"):
+    """
+    Her model için radar/spider chart.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    metrics = ["accuracy", "recall", "precision", "f1"]
+    metric_labels = ["Doğruluk", "Duyarlılık", "Kesinlik", "F1"]
+    
+    for class_name in all_results["experiments"]:
+        class_label = "İkili Sınıflandırma" if class_name == "binary" else "Çok Sınıflı Sınıflandırma"
+        
+        models = list(all_results["experiments"][class_name].keys())
+        n_models = len(models)
+        
+        # Renk paleti
+        colors = sns.color_palette("husl", n_models)
+        
+        # Radar chart için açılar
+        angles = np.linspace(0, 2 * np.pi, len(metrics), endpoint=False).tolist()
+        angles += angles[:1]  # Kapatmak için
+        
+        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw=dict(polar=True))
+        
+        for i, model in enumerate(models):
+            values = [all_results["experiments"][class_name][model].get(m, 0) for m in metrics]
+            values += values[:1]  # Kapatmak için
+            
+            ax.plot(angles, values, 'o-', linewidth=2, label=model, color=colors[i])
+            ax.fill(angles, values, alpha=0.1, color=colors[i])
+        
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(metric_labels)
+        ax.set_ylim(0, 100)
+        ax.set_title(f'{class_label} - Model Performansları', y=1.08)
+        ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
+        
+        plt.tight_layout()
+        filename = f"{output_dir}/radar_chart_{class_name}.png"
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"  ✓ Kaydedildi: {filename}")
+
+
+def plot_difference_chart(all_results: Dict, paper_results: Dict, output_dir: str = "figures"):
+    """
+    Makale ile aramızdaki farkı gösteren chart.
+    Yeşil = biz daha iyi, Kırmızı = makale daha iyi
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for class_name in all_results["experiments"]:
+        class_label = "İkili Sınıflandırma" if class_name == "binary" else "Çok Sınıflı Sınıflandırma"
+        
+        models = list(all_results["experiments"][class_name].keys())
+        differences = []
+        
+        for model in models:
+            our_acc = all_results["experiments"][class_name][model]["accuracy"]
+            paper_acc = paper_results.get(class_name, {}).get(model, {}).get("accuracy", our_acc)
+            differences.append(our_acc - paper_acc)
+        
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        colors = ['#4CAF50' if d >= 0 else '#F44336' for d in differences]
+        bars = ax.barh(models, differences, color=colors, alpha=0.8)
+        
+        ax.axvline(x=0, color='black', linewidth=0.8)
+        ax.set_xlabel('Fark (Bizim - Makale) %')
+        ax.set_title(f'{class_label} - Makale ile Karşılaştırma')
+        
+        # Değerleri bar yanına yaz
+        for bar, diff in zip(bars, differences):
+            width = bar.get_width()
+            ax.annotate(f'{diff:+.2f}%',
+                        xy=(width, bar.get_y() + bar.get_height()/2),
+                        xytext=(5 if width >= 0 else -5, 0),
+                        textcoords="offset points",
+                        ha='left' if width >= 0 else 'right',
+                        va='center', fontsize=10)
+        
+        plt.tight_layout()
+        filename = f"{output_dir}/difference_chart_{class_name}.png"
+        plt.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close()
+        print(f"  ✓ Kaydedildi: {filename}")
+
+
+def plot_binary_vs_multiclass(all_results: Dict, output_dir: str = "figures"):
+    """
+    Binary ve Multi-class sonuçlarını karşılaştıran grouped bar chart.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    if "binary" not in all_results["experiments"] or "multiclass" not in all_results["experiments"]:
+        print("  ⚠ Binary veya multiclass sonuçları eksik, bu grafik atlanıyor.")
+        return
+    
+    models = list(all_results["experiments"]["binary"].keys())
+    binary_acc = [all_results["experiments"]["binary"][m]["accuracy"] for m in models]
+    multi_acc = [all_results["experiments"]["multiclass"][m]["accuracy"] for m in models]
+    
+    x = np.arange(len(models))
+    width = 0.35
+    
+    fig, ax = plt.subplots(figsize=(14, 7))
+    
+    bars1 = ax.bar(x - width/2, binary_acc, width, label='İkili Sınıflandırma', color='#3F51B5', alpha=0.8)
+    bars2 = ax.bar(x + width/2, multi_acc, width, label='Çok Sınıflı', color='#FF9800', alpha=0.8)
+    
+    ax.set_ylabel('Doğruluk (%)')
+    ax.set_title('İkili vs Çok Sınıflı Sınıflandırma Karşılaştırması')
+    ax.set_xticks(x)
+    ax.set_xticklabels(models, rotation=45, ha='right')
+    ax.legend()
+    ax.set_ylim([0, 105])
+    
+    # Değerleri bar üstüne yaz
+    for bar in bars1:
+        height = bar.get_height()
+        ax.annotate(f'{height:.1f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3), textcoords="offset points",
+                    ha='center', va='bottom', fontsize=9)
+    
+    for bar in bars2:
+        height = bar.get_height()
+        ax.annotate(f'{height:.1f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3), textcoords="offset points",
+                    ha='center', va='bottom', fontsize=9)
+    
+    plt.tight_layout()
+    filename = f"{output_dir}/binary_vs_multiclass.png"
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  ✓ Kaydedildi: {filename}")
+
+
+def plot_all_results(all_results: Dict, paper_results: Dict, output_dir: str = "figures"):
+    """
+    Tüm görselleştirmeleri oluşturur.
+    """
+    print("\n" + "="*60)
+    print("GÖRSELLEŞTİRMELER")
+    print("="*60)
+    
+    print("\n📊 Doğruluk karşılaştırması oluşturuluyor...")
+    plot_accuracy_comparison(all_results, paper_results, output_dir)
+    
+    print("\n🔥 Metrik heatmap oluşturuluyor...")
+    plot_metrics_heatmap(all_results, output_dir)
+    
+    print("\n🎯 Radar chart oluşturuluyor...")
+    plot_model_radar(all_results, output_dir)
+    
+    print("\n📉 Fark grafiği oluşturuluyor...")
+    plot_difference_chart(all_results, paper_results, output_dir)
+    
+    print("\n📈 Binary vs Multiclass karşılaştırması oluşturuluyor...")
+    plot_binary_vs_multiclass(all_results, output_dir)
+    
+    print(f"\n✅ Tüm grafikler '{output_dir}/' klasörüne kaydedildi.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="EpiGraphNet - Tüm Deneyler")
     parser.add_argument(
@@ -671,6 +950,9 @@ def main():
         
         headers = ["Model", "Makale", "Bizim", "Fark", ""]
         print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    
+    # Görselleştirmeler oluştur
+    plot_all_results(all_results, paper_results, output_dir="figures")
     
     # Sonuçları kaydet
     with open(args.output, 'w', encoding='utf-8') as f:
