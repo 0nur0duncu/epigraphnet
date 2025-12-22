@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from typing import Dict, Any
 import json
 from datetime import datetime
+from tqdm import tqdm
 
 from models.baselines import BaselineCNNLSTM, Baseline1DCNNLSTM
 from models.epigraphnet import EpiGraphNet
