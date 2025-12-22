@@ -1,0 +1,185 @@
+# EpiGrafNet: Grafik Temelli EEG Analizi ile Epilepsi Tani Mimarisi
+
+# EpiGraphNet: Epilepsy Recognition Architecture with Graph-Based EEG Analysis
+
+Ecem Şimşek *†, Emirhan \(\mathrm { K o } \varsigma ^ { * \dagger }\) , and Aykut \({ \mathrm { K o } } { \varsigma } ^ { * \dagger }\)
+
+*Elektrik ve Elektronik Mühendisliği Bölümü, Bilkent Üniversitesi, Ankara, Türkiye
+
+† Ulusal Manyetik Rezonans Araştırma Merkezi (UMRAM), Ankara, Türkiye
+
+Özetçe —Epileptik nöbetlerin erken ve doğru tespiti, hastaların yaşam kalitesi ve tedavi sürecinde hayati öneme sahiptir. Bu doğrultuda çalışmamız, elektroensefalografi (EEG) sinyalleri kullanarak epileptik nöbet tespitinde yüksek performans sunan yenilikçi bir hibrit model olan EpiGrafNet’i önermektedir. Önerilen yöntem, tek boyutlu konvolüsyonel sinir ağları (CNN) ve uzun-kısa süreli bellek (LSTM) modülü aracılığıyla EEG sinyallerinden yerel ve uzun vadeli zamansal öznitelikler çıkarmakta; bu öznitelikler, korelasyonel bağlantı matrisleri (KBM) kullanılarak grafik yapısına dönüştürülmekte ve grafik konvolüsyonel sinir ağları (GCN) ile entegre edilmektedir.Geliştirilen model, farklı seyreklik değerleriyle yapılan deneyler sonucunda hem ikili hem de çok sınıflı epileptik nöbet tespitinde üstün doğruluk, duyarlılık, kesinlik ve F1 skorları elde etmekte, bu da EpiGrafNet'in mevcut yöntemlere göre daha yüksek ve güvenilir sonuçlar verdiğini göstermektedir. Önerilen yaklaşım, EEGsinyallerindeki karmaşık uzamsal ve zamansal ilişkileri etkili bir şekilde modelleyerek, klinik uygulamalarda otomatik epileptik nöbet tespit sistemlerinin geliştirilmesine önemli katkılar sağlamaktadır.
+
+Anahtar Kelimeler—EEG, Epilepsi, Epileptik nöbet tespiti, CNN-LSTM, GCN, Korelasyonel bağlantı matrisi, Derin öğrenme.
+
+## I. GİRİŞ
+
+Beynin elektriksel aktivitelerini kaydetmek için kullanılan ve invaziv olmayan elektroensefalografi (EEG), yüksek zamansal çözünürlüğü sayesinde klinik araştırmalarda vazgeçilmez bir araç haline gelmiştir. EEG, nöral dinamiklerin gerçek zamanlı izlenmesine olanak tanıyarak, nörolojik bozuklukların tanısı ve bilişsel süreçlerin incelenmesinde kritik rol oynar [1], [2]. Özellikle ani ve anormal nöronal boşalmalardan kaynaklanan epileptik nöbetlerin zamanında tespiti, EEG kayıtlarında gözlemlenen karakteristik desenler sayesinde mümkün olup, etkili klinik müdahale ve kişiselleştirilmiş tedavi stratejilerinin geliştirilmesine katkı sağlamaktadır [3], [4].
+
+Son yıllarda araştırmacılar, EEG sinyallerinden epileptik nöbet tespitinin doğruluğunu ve güvenilirliğini artırmak amacıyla ileri makine öğrenimi (MÖ) ve derin öğrenme (DÖ) tekniklerine yönelmişlerdir. Bu doğrultuda geleneksel sinyal işleme yaklaşımları, konvolüsyonel sinir ağları (CNN), yinelenen sinir ağları (RNN), uzun-kısa süreli bellek (LSTM) ve yakın zamanda grafik sinir ağları (GNN) gibi veri odaklı yöntemler giderek daha fazla kullanılmaya başlanmıştır [5], [6]. Bu yöntemler, verideki zamansal dinamikleri ve uzamsal korelasyonları etkili bir şekilde yakalamaktadır. Ayrıca bu yöntemlerle, gerçek klinik senaryolarda sağlam ve otomatik sistemlerin geliştirilmesine olanak tanıyan yenilikçi stratejiler ortaya konmuştur [7]. Özellikle grafik tabanlı metodlar, biyomedikal sinyal işleme, doğal dil işleme, zaman serileri analizi, filtreleme ve radar sistemleri gibi gibi alanlarda elde ettikleri üstün performansla dikkat çekmekte ve etkili sonuçlar sunmaktadır [8][13]. Bu başarıları sonucunda EEG sinyallerinde de uygulanarak, düğümler (nodes) arasındaki karmaşık ilişkileri modelleme yeteneği sayesinde epileptik nöbet tespitinde yüksek doğruluk ve güvenilirlik sağlamaktadır [7]. DÖ ve GNN tekniklerinin farklı şekillerde birleştirilmesi, EEG sinyallerinin ve içerdikleri epileptik nöbet bilgilerinin en etkili şekilde analiz edilip sıniflandırılmasına olanak tanımaktadır.
+
+Bu çalışmada, EEG sinyallerinde üstün epileptik nöbet tanı başarısı elde etmek amacıyla tek boyutlu (1D) CNNLSTM mimarisi ile EEG alanında yenilikçi bir grafik tabanlı modülü entegre eden, yeni ve özgün bir hibrit çerçeve olan EpiGrafNet'i sunmaktayız. EpiGrafNet yöntemimiz, CNNLSTM'nin yerel zamansal örüntüleri ve uzun vadeli bağımlılıkları modellemedeki gücünden yararlanırken, EEG verisindeki öznitelik kümeleri (feature sets) arasındaki karmaşık ilişkileri özetleyen korelasyonel bağlantı matrislerini (KBM) ise
+
+yapısındaki grafik modülü aracılığıyla kullanmaktadır. Grafik oluşturma sürecinde değer ve bağlantı eşikleme gibi tekniklerin uygulanmasıyla yaklaşımımız, EEG sinyallerinde öne çıkan özellikleri etkili bir şekilde bulmakta ve kullanmaktadır. Bu tamamlayıcı tekniklerin entegrasyonu, klinik uygulamalarda otomatik epileptik nöbet tespit sistemlerinin geliştirilmesi için umut verici bir potansiyel sunmaktadır.
+
+## II. METODOLOJİ
+
+Sunduğumuz özgün EpiGrafNet yöntemi, dört temel kısımdan oluşmaktadır. Bu kısımlar sırasıyla veri kümesi önişlemesi, CNN-LSTM modülü ile öznitelik çıkarımi, KBM ile grafik oluşturulması ve grafik konvolüsyonel sinir ağları (GCN) mimarisi aracılığıyla grafik düzeyinde sınıflandırmadır. Önerilen EpiGrafNet yönteminin bütünsel mimarisini Şekil 1'de görmek mümkündür. EpiGrafNet’in temel kısımları, aşağıdaki başlıklar altında sırasıyla detaylandırılacaktır.
+
+![](images/23b5f759b71ab614a72089ddd43a9db37fa27cfbcedba20378b8d464e08a0b57.jpg)  
+Şekil 1: Önerilen EpiGrafNet modelinin genel mimarisi. Kullanılan eşikleme yöntemine göre oluşturulan grafikler ağırlıklı (weighted) veya ağırlıksız (unweighted) olabilir.
+
+### A. Veri Kümesi Önişlemesi
+
+Çalışmada kullanılan EEG veri kümesini aşağıdaki şekilde tanımlamak mümkündür:
+
+\[
+\mathcal {D} = \left\{\left(x _ {i}, y _ {i}\right) \right\} _ {i = 1} ^ {M}. \tag {1}
+\]
+
+Eşitlik 1'de gösterilen her \(x _ { i } \in \mathbb { R } ^ { d }\) , d-boyutlu ham bir EEG ölçüm vektörünü, \(y _ { i } \in \{ 1 , . . . , C \}\) ise bu vektörün, diğer bir deyişle veri örneğinin, sınıf etiketini belirtir. Veri kümesindeki ham örnekler 1D CNN katmanları tarafindan işleneceği için 1D kanal boyutunu da içerecek şekilde yeniden şekillendirilir. Bu doğrultuda örneklerin şekli \(\bar { x } _ { i } \in \mathbb { R } ^ { \bar { 1 } \times d }\) olarak güncellenir ve her bir örnek ekstra bir kanal boyutu içermiş olur.
+
+### B. CNN-LSTM Modülü ile Öznitelik Çıkarımı
+
+EpiGrafNet yöntemi, EEG sinyallerindeki hem yerel zamansal özellikleri hem de uzun vadeli bağımlılıkları yakalamak için hibrit bir CNN-LSTM mimarisi kullanır. CNN bileşeni, ReLU aktivasyon fonksiyonu, maksimum havuzlama (MaxPool) operasyonu ve yığın normalizasyonunun (BatchNorm) birbirini takip ettiği birden fazla 1D konvolüsyon katmanından oluşmaktadır. Örneğin, ilk 1D konvolüsyon katmanı şu işlemi uygular:
+
+\[
+x ^ {(1)} = \operatorname {B a t c h N o r m} (\operatorname {M a x P o o l} (\operatorname {R e L U} (\operatorname {C o n v 1 D} (x; W _ {1}, b _ {1})))) \tag {2}
+\]
+
+burada \(W _ { 1 }\) ve \(b _ { 1 }\) sırasıyla konvolüsyon ağırlıklarını ve la \(\boldsymbol { x } \in \mathrm { \mathbb { R } } ^ { s \times 1 \times d }\) yiğinlanms veri örneklerine karşılık gelir ve \(s\) yığın boyutunu belirtir. Birkaç konvolüsyon bloğundan sonra elde edilen öznitelik
+
+haritaları düzleştirilir (flatten) ve tam bağlı lineer (FC) bir katmandan geçirilir:
+
+\[
+z = \operatorname {F C} (\text {f l a t t e n} (x ^ {L _ {C N N}})), \tag {3}
+\]
+
+burada \(L _ { C N N }\) gösterimi son konvolüsyonel katmanı belirtir ve bu işlemlerin hemen ardından bir sönümleme (dropout) düzenlemesi uygulanır:
+
+\[
+z _ {d r o p} = \operatorname {D r o p o u t} (z, p). \tag {4}
+\]
+
+Eşitlik 4'te \(p\) ,uygulanan dropout oranını belirtir. Dropout uygulanmış öznitelik vektörü \(z _ { d r o p }\) , uzun vadeli bağımlılıkları tespit eden iki katmanlı bir LSTM'ye girdi olarak verilir:
+
+\[
+H _ {t}, \left(h _ {t}, c _ {t}\right) = \operatorname {L S T M} \left(z _ {\text {d r o p}}, t = 1, \dots , T\right), \tag {5}
+\]
+
+burada \(h _ { t }\) , t zamanındaki gizli durumu, \(c _ { t }\) , t zamanındaki hücre durumu, \(H _ { t }\) , t zamanına kadar üretilen bütün gizli durumların toplandığı 3 boyutlu (3D) bir tensörü ve \(T\) toplam zaman adım sayısını belirtir. LSTM’nin son aşamasında, bütün gizli durumların bir araya getirilmesiyle ise tüm gizli durumları içeren 3D bir \(H\) tensörü oluşturulur, bir diğer deyişle \(H _ { T } = H\) şeklinde ifade edilebilir. Bu doğrultuda \(H\) , \(\bar { H } ~ \bar { \in } ~ \mathbb { R } ^ { s \times T \times h }\) s ekinde boyutlara sahiptir ve \(s\) yine yığın boyutuna, \(h\) ise LSTM'den elde edilen öznitelik boyutuna karşılık gelir. LSTM'den toplamda elde edilen \(H\) çıktısı, EEG sinyalinin zengin zamansal temsiliyetini yakalar ve sonraki aşama olan grafik oluşturma için temel teşkil eder.
+
+### C. KBM ile Grafik Oluşturulması
+
+CNN-LSTM modülünden elde edilen zengin öznitelikler, her bir EEG sinyali içerisindeki ilişkileri temsil eden pencerelemeli KBM'lere dönüştürülür. Bu amaçla, CNN-LSTM çıktısı \(H \in \mathbb { R } ^ { s \times T \times h }\) önce pencereleme (windowing) işlemiyle \(T\) boyutunda \(W\) pencereye bölünerek, her pencerenin uzunluğu \(T _ { w }\) olacak şekilde, \(\textit { T } = \textit { W } \times \textit { T } _ { w }\) , yeniden şekillendirilir. Ardından, düğüm bölümlendirme (node partitioning) ile her penceredeki öznitelikler, EEG sinyallerinin yapısına uygun \(N\) grafik düğümü oluşturacak şekilde gruplanır. Sonuç olarak, \(H\) ensr \(\breve { X } \in \mathbb R ^ { s \times \vec { W } \times N \times T _ { w } }\) ye dönüştürülür.
+
+KBM'lerin hesaplanmasında normalizasyon kritik bir adimdır. Bu doğrultuda, \(X \in \mathbb { R } ^ { s \times W \times N \times T _ { w } }\) tensörünün normalize edilmesi ve işlenmesiyle \(C \in \mathbb { R } ^ { s \times W \times N \times N }\) tensörü ele edilir. \(C\) tensörü, her bir EEG sinyali içerisindeki fonksiyonel bağlantıları içeren \(N \times N\) boyutundaki KBM'lerden oluşur. \(C\) tensörünün elde edilmesinde \(X\) tensöründeki her pencere (window) \(k\) ve düğüm (node) \(i\) için, öncelikle zaman boyutundaki ortalama hesaplanir:
+
+\[
+\bar {x} _ {i} ^ {(k)} = \frac {1}{T} \sum_ {t = 1} ^ {T} x _ {i} ^ {(k)} (t), \tag {6}
+\]
+
+ve yine zaman boyutunda bu ortalamalar çıkarılarak \(X\) tensö- ründeki veriler merkezileştirilir:
+
+\[
+\tilde {x} _ {i} ^ {(k)} (t) = x _ {i} ^ {(k)} (t) - \bar {x} _ {i} ^ {(k)} (t). \tag {7}
+\]
+
+Eik 6 ve kulanan \(x _ { i } ^ { ( k ) } ( t )\) (k) ifadesi, \(k\) inci pencere içindeki iinci düğümün \(t ^ { \because }\) inci zaman adımındaki ölçüm değerini temsil eder. Kısacası, bu eşitliklerde uygulanan normalizasyon işlemi, her pencere için zaman boyutundaki \(( T _ { w } )\) öğeler üzerinde gerçekleştirilir. Ardından, Eşitlik 7'deki merkezileştiril
+
+miş veriler ile bir kovaryans matrisinin elemanları hesaplanır:
+
+\[
+V _ {i j} ^ {(k)} = \frac {1}{T - 1} \sum_ {t = 1} ^ {T} \tilde {x} _ {i} ^ {(k)} (t) \tilde {x} _ {j} ^ {(k)} (t), \tag {8}
+\]
+
+bu hesaplanan elemanlar, her düğüm çifti arasındaki kovaryansı verir. Ayrica kovaryans matrisinin diyagonal elemanlari, yani \(V _ { i i } ^ { ( k ) }\) , her düğüm için varyansa karşılık gelir. Standart sapma ise bu varyans değerleri kullanılarak elde edilir:
+
+\[
+\sigma_ {i} ^ {(k)} = \sqrt {V _ {i i} ^ {(k)}}. \tag {9}
+\]
+
+Son olarak, kovaryans değerleri standard sapma değerleriyle normalize edilir ve korelasyon matrisi değerleri bulunur:
+
+\[
+C _ {i j} ^ {(k)} = \frac {V _ {i j} ^ {(k)}}{\sigma_ {i} ^ {(k)} \sigma_ {j} ^ {(k)}}, \tag {10}
+\]
+
+bu korelasyon değerleri \([ - 1 , 1 ]\) aralığına sınırlıdır. Eşitlik 6 - 10 boyunca uygulanan adimlarda kovaryans değerleri bulunmuş ve bu ham değerler ölçekten bağımsız korelasyon katsayılarına dönüştürülmüş olur. Eşitlik 10'da hesaplanan elemanlar, her bir EEG sinyali içerisindeki korelasyon katsayılarını temsil eder ve KBM'lerin elemanlarıdır. KBM'ler i hesaplanan eemanlarya \(C\) tensörünü oluştururlar, \(C _ { i j } ^ { ( k ) } \in\) \(C \in \mathbb { R } ^ { s \times W \times N \times N }\) . EpiGrafNet mimarisindeki grafikler, CNNLSTM modülünden elde edilen ve yeniden şekillendirilen özniteliklerin \(( X ~ \in ~ \mathbb { R } ^ { s \times W \times N \times T _ { w } } )\) düğümlere atanmasıyla ve KBM'lerdeki değerlerin bu düğümler arasındaki kenarları (edge) belirlemesiyle oluşturulur. Bu kenarların varlığına karar vermek için iki farklı eşikleme yöntemi kullanılabilir.
+
+1) Değer Eşikleme (Value Thresholding) \(( D E )\) : Her pencere \(k\) için elde edilen KBM'deki \(( C ^ { ( k ) } )\) her bir eleman kullanılarak kenar tanımı şu şekilde yapılır:
+
+\[
+\operatorname {K e n a r} _ {i j} ^ {(k)} = \left\{ \begin{array}{l l} 1, & \text {i f} C _ {i j} ^ {(k)} > \text {p e r c e n t i l e} \left(C ^ {(k)}, 1 0 0 - a\right), \\ 0, & \text {a k s i h a l d e .} \end{array} \right. \tag {11}
+\]
+
+Burada, percentile \(\left( C ^ { ( k ) } , 1 0 0 - a \right)\) fonksiyonu, \(C ^ { ( k ) }\) matrisinin tüm elemanlarì arasındaki \(1 0 0 - a\) 'ıncı yüzdelik değeri verir. Bu şekilde a parametresi, grafiğin seyrekliğini (sparsity) ayarlar ve isteğe göre seçilebilir. Eşitlik 11’deki eşik değerinin üzerinde olan bağlantılar 1 (var) olarak kabul edilir, diğerleri ise 0 (yok) olarak atanır ve ağırlıksız bir grafik oluşturulur.
+
+2) Bağlantı Eşikleme (Connection Thresholding) (BE): Bu yöntemde, her düğüm için sabit sayıda en güçlü bağlantı korunur. Her düğüm \(i\) için korunması gereken bağlantı sayısı şu şekilde hesaplanır:
+
+\[
+n _ {\text {b a g}} = \left\lfloor \frac {N \times a}{1 0 0} \right\rfloor , \tag {12}
+\]
+
+burada \(N\) toplam düğüm sayısıdır. Her pencere \(k\) için, düğüm \(i\) 'nin diğer düğümlerle olan korelasyon değerlerinin mutlak degerleri, C(, \(\bar { | C } _ { i j } ^ { ( k ) } |\) , sralanır ve \(n _ { \mathrm { b a { \check { g } } } }\) sayısında en yüksek korelasyon değerlerine sahip \(j\) düğümlerinin indeksleri, \(S _ { i } ^ { ( k ) }\) Si kümesine eklenir. Böylece, ağırlıklı kenar tanımı şu şekilde yapılır:
+
+\[
+\operatorname {K e n a r} _ {i j} ^ {(k)} = \left\{ \begin{array}{l l} C _ {i j} ^ {(k)}, & \text {e g e r} j \in S _ {i} ^ {(k)}, \\ 0, & \text {a k s i h a l d e .} \end{array} \right. \tag {13}
+\]
+
+Bu yöntemlerle, KBM'deki bağlantı değerleri belirli eşikleme kriterlerine göre değerlendirilir ve her iki yöntemde de seyrekliği \(a\) parametresiyle ayarlanabilen grafik yapıları elde edilir.
+
+### D. GCN Modülü ile Grafik Düzeyinde Sıniflandırma
+
+Önceki kısımda belirtildiği gibi, grafiklerin kenar bağ- lantıları KBM'lerle oluşturulurken, düğüm öznitelikleri (node features) CNN-LSTM modülünün yeniden şekillendirilen \(X\) tensöründen elde edilir. Bu öznitelikler, \(\mathring { G ^ { ( 0 ) } } \ \in \ \mathbb { R } ^ { s \times N \times F }\) olarak tanımlanır; burada \(s\) yığın boyutu, \(N\) düğüm sayısı ve \(F\) , \(X\) 'in \(W\) ve \(T _ { w }\) boyutlarinın birleşmesiyle elde edilen öznitelik boyutudur. EpiGrafNet'in GCN modülü, GraphConv [ katmanları aracıığıyla \(G ^ { ( 0 ) }\) ve komşuluk (adjacency) bilgilerini kullanarak her düğümün komşularından mesaj alır ve aşağıdaki güncelleme kuralıyla bu mesajları entegre eder:
+
+\[
+\begin{array}{l} G _ {i} ^ {(l + 1)} = \operatorname {R e L U} \left(W ^ {(l)} \left(G _ {i} ^ {(l)} + \sum_ {j \in \mathcal {N} (i)} G _ {j} ^ {(l)}\right)\right), \tag {14} \\ l = 0, 1, \dots , L - 1. \\ \end{array}
+\]
+
+Burada \(\mathcal { N } ( i )\) düğüm i’nin komşu düğümler kümesini, \(W ^ { ( l ) }\) l’inci katmandaki öğrenilebilir ağırlıkları ve \(L\) GCN modülündeki toplam katman sayısını belirtir. GCN modülündeki bütün katman işlemleri sonucunda elde edilen düğüm öznitelikleri, global maksimum havuzlama (global_max_pool) işlemiyle bir yığındaki her bir örnek için tek (ayrı) bir grafik temsiline dönüştürülür ve bu grafik temsilleri, \(g _ { g r a f }\) içerisinde yer alır:
+
+\[
+g _ {\text {g r a f}} = \text {g l o b a l} _ {\text {m a x}} \text {p o o l} \left(G ^ {(L)}, s\right). \tag {15}
+\]
+
+Son olarak, bu grafik temsilleri bir tam bağlı lineer (FC) katman ve softmax aktivasyon fonksiyonu aracılığıyla belirlenen etiketlere eşlenir:
+
+\[
+\hat {y} = \operatorname {s o f t m a x} \left(\mathrm {F C} \left(g _ {\text {g r a f}}\right)\right). \tag {16}
+\]
+
+EpiGrafNet, bu GCN modülü yapısı sayesinde, CNN-LSTM tarafından elde edilen ve KBM'ler ile grafiklere dönüştürülen zengin zamansal ve uzamsal temsilleri, GraphConv katmanları aracılığıyla entegre ederek EEG sinyallerinin sıniflandırılmasını gerçekleştirir.
+
+## III. DENEYLER & SONUÇLAR
+
+### A. Uygulama Detayları
+
+Bu çalışmada, epileptik nöbet tespiti için yaygın olarak kullanılan Bonn Epileptik EEG Veri Kümesi [15] kullanılmış- tir. Veri kümesi, 23.6 saniyelik tek kanallı EEG kayıtlarından oluşmakta olup, 173.61 Hz örnekleme frekansıyla kaydedilmiştir. 500 katılımcıya ait EEG kayıtları, 5 farklı koşul setine ayrılmıştır: sağlıklı bireylerin gözleri açık (sınıf 5) ve gözleri kapalı (sınıf 4) kayıtları, nöbet geçirmeyen epilepsi hastalarının nötr (sınıf 2) ve nöbet uyaran (sınif 3) ortamdaki kayıtları ve nöbet geçiren epilepsi hastalarının nöbet esnasındaki kayıtları (sinif 1). Veri kümesi, sinif 1 (nöbet var) ve sinif 0 (nöbet yok) şeklinde ikili sıniflandırma için de kullanılmaktadır.
+
+Veri kümesinin \(\% 8 0 ^ { \circ } )\) i eğitim, \(\% 1 0 \mathrm { { u } }\) validasyon ve \(\% 1 0 \mathrm { { u } }\) test için kullanılmış olup veri kümesi belirtilen oranlarda ayrılmadan önce karılmıştır. EpiGrafNet yöntemimiz için kullanılan hiperparametreler, oluşturulan validasyon kümesinde optimize edilmiştir. Bu doğrultuda, yöntemimiz için kullanılan temel hiperparametrelerin varsayılan değerleri Tablo I'de özetlenmiştir.
+
+TABLO I: EpiGrafNet mimarisinde kullanılan temel hiperparametrelerin varsayılan değerleri.   
+
+<table><tr><td>Parametre</td><td>Déger</td><td>Açklama</td></tr><tr><td>Yüzgün boylut (Batch size)</td><td>64</td><td>Her yüzgünaki ömeşsaysı</td></tr><tr><td>Öğrne质量问题 (Learning rate)</td><td>0.001</td><td>Adam optimizasyon algoitrmasi icin öğrne质量问题</td></tr><tr><td>Aşkılc bozlummasi (Weight decay)</td><td>0.0005</td><td>L2 dizendelemé (regularization) parametresı</td></tr><tr><td>Epoch saysı</td><td>50</td><td>Toplam eşimiş epoch saysı</td></tr><tr><td>Gizli boylut (LSTM)</td><td>64</td><td>LSTM gizl durum boylut</td></tr><tr><td>GCN icin gizlkanlanel boylut</td><td>64</td><td>GCN modülündeki kanal boylut</td></tr><tr><td>Seyreklik (Sparsity) (a)</td><td>50</td><td>KBM seksiklemi icin seyreklik parametresi (0 seyrek; 100 tamamen建議)</td></tr><tr><td>Dropout orani</td><td>0.1</td><td>Uygulananan dropout orani</td></tr><tr><td>Öğrne质量问题 planlaycisi</td><td>LinearLR</td><td>BASFlangç faktörü 0.1 ilelinear öğrne质量问题 planlaycisi</td></tr></table>
+
+### B. Sonuçlar
+
+EpiGrafNet modeli, bahsi geçen veri kümesinde hem iki hem de çok sınıflı sınıflandırma koşullarında eğitilmiş ve test edilmiştir. Yapılan deneylerde modelin performansını ölçebilmek adına doğruluk (accuracy), duyarlılık (recall), kesinlik (precision) ve F1 kriterleri kullanılmış olup model 5 kez çalıştı- rılarak elde edilen sonuçların ortalaması alınmıştır. EpiGrafNet modeli, güncel modeller olan CNN-LSTM [16] ve 1D-CNNLSTM [17] ile karşılaştırılmış ve bu modeller de yeniden çalış- tırılarak sonuçları üretilmiştir. İki model de 5 kez çalıştırılarak sonuçlarının ortalamaları alınmıştır. Bu kapsamda, Bonn Veri Kümesi için elde edilen model sonuçlarını Tablo II'de görmek mümkündür. Bu tabloda EpiGraphNetDE değer eşiklemesi, EpiGraphNet \(_ { B E }\) ise bağlantı eşiklemesi kullanan yöntemimize karşılık gelmektedir. Ayrıca her iki eşikleme yöntemi \(a = 2 5\) ve \(a = 5 0\) olmak üzere iki farklı seyreklik değeriyle denenmiş- tir. Tablo II'ye bakıldığında, EpiGrafNet modelinin diğer modellerle kıyaslandığında, değerlendirilen tüm kriterlerde üstün performans gösterdiği görülmektedir. Orta bir seyreklik değeri ( \(a = 5 0\) )kullanılarak elde edilen sonuçlar, EEG sinyallerindeki epileptik nöbet tespitinde başarılı bir performans sergilemektedir. Ayrıca, seyreklik arttırıldığında \(\mathit { \Delta } a \ = \ 2 5\) sonuçlarda daha da iyileşme gözlemlenmiş olup farklı seyreklik değerleriyle yapılan deneyler, modelin parametrenin farklı değerlerine uyum sağlayabildiğini göstermiştir. Ayrıca her iki eşikleme yönteminde de modelin iyi sonuçlar verdiği görülmüştür.
+
+TABLO II: Bonn Epileptik Veri Kümesi’nde EpiGrafNet ve karşılaştırılan modellerin doğruluk, duyarlılık, kesinlik ve F1 kriterlerinde ikili ve çoklu sınıflandırma karşılaştırması. Her kriterdeki en yüksek sonuçlar kalınlaştırılmıştır.   
+
+<table><tr><td>Sinflandirma Çesidi</td><td>Model</td><td>Dogruluk</td><td>Duyarhhk</td><td>Kesinlik</td><td>F1</td></tr><tr><td rowspan="6">Iki Şinflı</td><td>CNN-LSTM [16]</td><td>99.30</td><td>98.69</td><td>98.70</td><td>98.62</td></tr><tr><td>1D-CNN-LSTM [17]</td><td>99.04</td><td>97.69</td><td>99.07</td><td>98.30</td></tr><tr><td>EpiGraphNetDE(a=50)</td><td>99.30</td><td>98.71</td><td>99.12</td><td>98.89</td></tr><tr><td>EpiGraphNetDE(a=25)</td><td>99.56</td><td>99.31</td><td>99.45</td><td>99.36</td></tr><tr><td>EpiGraphNetBE(a=50)</td><td>99.00</td><td>97.68</td><td>98.96</td><td>98.22</td></tr><tr><td>EpiGraphNetBE(a=25)</td><td>99.12</td><td>98.15</td><td>99.15</td><td>98.63</td></tr><tr><td rowspan="6">Çok Şinflı</td><td>CNN-LSTM [16]</td><td>77.70</td><td>77.49</td><td>78.70</td><td>76.97</td></tr><tr><td>1D-CNN-LSTM [17]</td><td>79.50</td><td>79.55</td><td>79.96</td><td>78.91</td></tr><tr><td>EpiGraphNetDE(a=50)</td><td>80.60</td><td>80.28</td><td>81.26</td><td>79.60</td></tr><tr><td>EpiGraphNetDE(a=25)</td><td>82.47</td><td>81.96</td><td>82.13</td><td>81.33</td></tr><tr><td>EpiGraphNetBE(a=50)</td><td>81.26</td><td>80.87</td><td>81.30</td><td>80.34</td></tr><tr><td>EpiGraphNetBE(a=25)</td><td>82.51</td><td>81.98</td><td>82.25</td><td>82.14</td></tr></table>
+
+## IV. SONUÇ
+
+Bu çalışmada, EEG sinyalleri üzerinde epileptik nöbet tespiti için yeni ve özgün bir model olan EpiGrafNet'i tanitmaktayız. Modelimiz, CNN-LSTM mimarisini, KBM ve GCN bazlı bir grafik modülü ile entegre ederek, EEG sinyallerinin karmaşık uzamsal ve zamansal ilişkilerini daha etkili bir şekilde yakalayabilmektedir. EpiGrafNetin yenilikçiliği, özellikle farklı seyreklik değerleri ile gerçekleştirdiğimiz deneylerdeki üstün performansta görülebilmekte ve doğrulanabilmektedir. Yapılan kapsamlı deneylerde, modelimiz seçilen eşikleme
+
+parametreleriyle birlikte, karşılaştırılan diğer yöntemlere göre daha yüksek kriter değerlerine ulaşmakta ve epileptik nöbet tespitinde yüksek güvenilirlik sağlamaktadır. Bu doğrultuda, EpiGrafNet, EEG sinyalleri üzerinde epileptik nöbet tespiti için güçlü ve etkili bir yöntem olarak önerilmektedir. Sonuçlarımız, modelin klinik uygulamalarda kullanılabilecek bir potansiyel sunduğunu ve yöntemin farklı seyreklik değerlerine güçlü bir şekilde uyum sağladığını göstermektedir.
+
+## V. BİLGİLENDİRME
+
+Bu çalışma, TÜBİTAK 1001 Programı (124E179) ve Bilgi Teknolojileri ve İletişim Kurumu koordinasyonundaki 5G ve Ötesi Ortak Lisansüstü Destek Programı kapsamında Türk Telekomünikasyon A.Ş. tarafindan, ayrıca TÜBİTAK 1515 Öncelikli Alanlar Ar-Ge Laboratuvarları Destek Programı çerçevesinde Türk Telekom neXt Generation Technologies Lab (XGeNTT) projesi (proje no 5249902) ile desteklenmiştir. Aykut Koç'un çalışması ise Bilim Akademisi BAGEP Ödülü ile desteklenmiştir.
+
+[16] G. Xu et al., “A one-dimensional CNN-LSTM model for epileptic seizure recognition using eeg signal analysis," Front. Neurosci., vol. 14, 2020.   
+[17] S. Shanmugam and S. Dharmar, “A CNN-LSTM hybrid network for automatic seizure detection in eeg signals," Neural Comput. Appl., vol. 35, no. 28, pp. 2060520617, 2023.

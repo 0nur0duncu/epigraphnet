@@ -1,20 +1,9 @@
-"""
-LSTM Modülü
-Makaledeki Bölüm II.B - LSTM bileşeni
-Eşitlik 5: H_t, (h_t, c_t) = LSTM(z_drop, t=1,...,T)
-"""
-
 import torch
 import torch.nn as nn
 from typing import Tuple, Optional
 
 
 class LSTMEncoder(nn.Module):
-    """
-    İki katmanlı LSTM Encoder.
-    Uzun vadeli zamansal bağımlılıkları yakalar.
-    """
-    
     def __init__(
         self,
         input_size: int,
@@ -24,15 +13,6 @@ class LSTMEncoder(nn.Module):
         bidirectional: bool = False,
         batch_first: bool = True
     ):
-        """
-        Args:
-            input_size: Giriş öznitelik boyutu
-            hidden_size: LSTM gizli durum boyutu
-            num_layers: LSTM katman sayısı
-            dropout: Katmanlar arası dropout
-            bidirectional: Çift yönlü LSTM
-            batch_first: Batch boyutu ilk sırada mı
-        """
         super().__init__()
         
         self.hidden_size = hidden_size
@@ -57,24 +37,12 @@ class LSTMEncoder(nn.Module):
         x: torch.Tensor,
         hidden: Optional[Tuple[torch.Tensor, torch.Tensor]] = None
     ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        """
-        Args:
-            x: Giriş tensörü (batch, seq_len, input_size)
-            hidden: Başlangıç gizli durumu (opsiyonel)
-            
-        Returns:
-            H: Tüm gizli durumlar (batch, seq_len, hidden_size * num_directions)
-            (h_n, c_n): Son gizli ve hücre durumları
-        """
-        # Eğer x 2D ise, sequence boyutu ekle
         if x.dim() == 2:
-            x = x.unsqueeze(1)  # (batch, 1, input_size)
+            x = x.unsqueeze(1)
         
-        # LSTM forward
         H, (h_n, c_n) = self.lstm(x, hidden)
         
         return H, (h_n, c_n)
     
     def get_output_size(self) -> int:
-        """LSTM çıkış boyutunu döndür."""
         return self.output_size

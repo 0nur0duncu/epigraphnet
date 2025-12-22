@@ -1,80 +1,67 @@
-# EpiGraphNet Konfigürasyon Dosyası
-# Makaledeki Tablo I ve Şekil 1'den alınan hiperparametreler
-
-# Veri Ayarları
 data:
   data_dir: "data/bonn"
   sampling_rate: 173.61  # Hz
-  segment_length: 4096   # 23.6 saniye * 173.61 Hz (resmi Bonn verisi: 4096)
+  segment_length: 4096   # 23.6 saniye * 173.61 Hz
   train_ratio: 0.8
   val_ratio: 0.1
   test_ratio: 0.1
   random_seed: 42
-  num_classes: 5         # Çok sınıflı için 5, ikili için 2
+  num_classes: 5 # Çok sınıflı için 5, ikili için 2
   binary_classification: false
 
-# Model Hiperparametreleri
 model:
-  # CNN Modülü (Şekil 1'e göre: Conv1D -> MaxPool -> Conv1D -> Conv1D)
+  # CNN Modülü (Conv1D -> MaxPool -> Conv1D -> Conv1D)
   cnn:
     in_channels: 1
     conv_channels: [16, 32, 64]  # 3 konvolüsyon katmanı
     kernel_sizes: [5, 5, 5]
-    pool_size: 2                  # Sadece ilk katmanda MaxPool (Şekil 1)
+    pool_size: 2
   
-  # LSTM Modülü (Şekil 1'de 2 LSTM katmanı)
+  # LSTM Modülü (2 LSTM katmanı)
   lstm:
     hidden_size: 64
     num_layers: 2
-    sequence_length: 8            # T - zaman adımı sayısı
+    sequence_length: 64            # T - zaman adımı sayısı
     bidirectional: false
   
-  # Grafik Oluşturma
   graph:
     num_windows: 8        # W - pencere sayısı
     num_nodes: 16         # N - düğüm sayısı
-    sparsity: 25          # a - seyreklik parametresi (Tablo II'de a=25 daha iyi sonuç)
-    thresholding: "value" # "value" (DE) veya "connection" (BE)
+    sparsity: 25          # a - seyreklik parametresi
+    thresholding: "value" # "value" (değer eşikleme) veya "connection" (bağlantı eşikleme)
   
-  # GCN Modülü (Şekil 1'de 3 GraphConv katmanı)
+  # GCN Modülü (3 GraphConv katmanı)
   gcn:
     hidden_channels: 64
-    num_layers: 3         # Şekil 1'e göre 3 katman
+    num_layers: 3
   
-  # Genel
   dropout: 0.1
   fc_hidden: 128
 
-# Eğitim Ayarları
 training:
   batch_size: 64
   num_epochs: 50
   learning_rate: 0.001
-  weight_decay: 0.0005
+  weight_decay: 0.0005 # aşırı öğrenmeyi önlemek için cezalandırma parametresi
   
-  # Öğrenme Hızı Planlayıcısı
   scheduler:
-    type: "linear"
+    type: "linear" # öğrenme hzının zamanla değişmesi için
     start_factor: 0.1
     total_iters: 10
   
-  # Erken Durdurma
   early_stopping:
     enabled: true
-    patience: 15          # 10'dan 15'e artırıldı
+    patience: 15
     min_delta: 0.001
   
-  # Checkpoint
   checkpoint:
     save_best: true
     save_dir: "checkpoints"
 
-# Değerlendirme
 evaluation:
-  num_runs: 5  # 5 kez çalıştırıp ortalama al
+  num_runs: 5
   metrics: ["accuracy", "recall", "precision", "f1"]
 
-# Loglama
 logging:
   log_dir: "logs"
   tensorboard: true
