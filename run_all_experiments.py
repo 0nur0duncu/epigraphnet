@@ -85,7 +85,10 @@ def run_single_experiment(
     run_id: int,
     sparsity: float = 50,
     thresholding: str = "value",
-    binary: bool = False
+    binary: bool = False,
+    model_name: str = "",
+    total_runs: int = 5,
+    verbose: bool = True
 ) -> Dict[str, float]:
     seed = 42 + run_id * 1000
     np.random.seed(seed)
@@ -125,26 +128,47 @@ def run_single_experiment(
     best_val_acc = 0.0
     patience_counter = 0
     best_state = None
+    best_epoch = 0
     
-    for epoch in range(1, num_epochs + 1):
-        train_one_epoch(model, train_loader, criterion, optimizer, device)
+    # Progress bar for epochs
+    desc = f"  Run {run_id}/{total_runs}"
+    pbar = tqdm(range(1, num_epochs + 1), desc=desc, leave=False, ncols=100) if verbose else range(1, num_epochs + 1)
+    
+    for epoch in pbar:
+        train_metrics = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_metrics = validate(model, val_loader, criterion, device)
         scheduler.step()
+        
+        # Update progress bar with current metrics
+        if verbose and hasattr(pbar, 'set_postfix'):
+            pbar.set_postfix({
+                'loss': f"{train_metrics['loss']:.4f}",
+                'val_acc': f"{val_metrics['accuracy']:.2f}%",
+                'best': f"{best_val_acc:.2f}%"
+            })
         
         if val_metrics["accuracy"] > best_val_acc + min_delta:
             best_val_acc = val_metrics["accuracy"]
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             patience_counter = 0
+            best_epoch = epoch
         else:
             patience_counter += 1
         
         if patience_counter >= patience:
+            if verbose:
+                tqdm.write(f"    Early stopping at epoch {epoch} (best epoch: {best_epoch}, best val_acc: {best_val_acc:.2f}%)")
             break
     
     if best_state is not None:
         model.load_state_dict(best_state)
     
-    return validate(model, test_loader, criterion, device)
+    test_metrics = validate(model, test_loader, criterion, device)
+    
+    if verbose:
+        tqdm.write(f"    Run {run_id} completed - Test Acc: {test_metrics['accuracy']:.2f}%, F1: {test_metrics['f1']:.2f}%")
+    
+    return test_metrics
 
 
 def run_experiment_suite(
@@ -156,9 +180,14 @@ def run_experiment_suite(
     num_runs: int = 5,
     sparsity: float = 50,
     thresholding: str = "value",
-    binary: bool = False
+    binary: bool = False,
+    model_name: str = ""
 ) -> Dict[str, float]:
     all_results = []
+    
+    print(f"\n{'='*60}")
+    print(f"Model: {model_name}")
+    print(f"{'='*60}")
     
     for run_id in range(1, num_runs + 1):
         metrics = run_single_experiment(
@@ -170,7 +199,10 @@ def run_experiment_suite(
             run_id=run_id,
             sparsity=sparsity,
             thresholding=thresholding,
-            binary=binary
+            binary=binary,
+            model_name=model_name,
+            total_runs=num_runs,
+            verbose=True
         )
         all_results.append(metrics)
     
@@ -180,6 +212,13 @@ def run_experiment_suite(
             values = [r[key] for r in all_results]
             avg_results[key] = np.mean(values)
             avg_results[f"{key}_std"] = np.std(values)
+    
+    # Print summary
+    print(f"\n  📊 {model_name} Ortalama Sonuçlar ({num_runs} run):")
+    print(f"     Accuracy:  {avg_results['accuracy']:.2f}% ± {avg_results['accuracy_std']:.2f}%")
+    print(f"     Precision: {avg_results['precision']:.2f}% ± {avg_results['precision_std']:.2f}%")
+    print(f"     Recall:    {avg_results['recall']:.2f}% ± {avg_results['recall_std']:.2f}%")
+    print(f"     F1:        {avg_results['f1']:.2f}% ± {avg_results['f1_std']:.2f}%")
     
     return avg_results
 
@@ -213,7 +252,13 @@ def main():
     }
     
     for class_name, binary in classification_types:
+        print(f"\n{'#'*70}")
+        print(f"# Sınıflandırma Türü: {'İkili (Binary)' if binary else 'Çok Sınıflı (Multi-class)'}")
+        print(f"{'#'*70}")
+        
         signals, labels = load_bonn_dataset(config["data"]["data_dir"], binary=binary)
+        print(f"Veri yüklendi: {len(signals)} örnek, {len(np.unique(labels))} sınıf")
+        
         all_results["experiments"][class_name] = {}
         
         for model_type, sparsity, thresholding in EXPERIMENTS:
@@ -232,13 +277,18 @@ def main():
                 num_runs=args.num_runs,
                 sparsity=sparsity if sparsity else 50,
                 thresholding=thresholding if thresholding else "value",
-                binary=binary
+                binary=binary,
+                model_name=model_name
             )
             
             all_results["experiments"][class_name][model_name] = results
     
     with open(args.output, 'w', encoding='utf-8') as f:
         json.dump(all_results, f, indent=2, ensure_ascii=False)
+    
+    print(f"\n{'='*70}")
+    print(f"✅ Tüm deneyler tamamlandı! Sonuçlar '{args.output}' dosyasına kaydedildi.")
+    print(f"{'='*70}")
 
 
 if __name__ == "__main__":
